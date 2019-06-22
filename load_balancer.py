@@ -1,15 +1,10 @@
 #!/usr/bin/python
 import logging
-import sys
 import abc
 import pickle
 import time
-import click
 import random
-import csv
 import zmq
-import zmq.decorators as zmqd
-import bpemb
 from multiprocessing import Process, Event
 from itertools import islice
 from termcolor import colored
