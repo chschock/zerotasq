@@ -25,7 +25,7 @@ class ExampleWorker(Worker):
         return "#" * min(100, round(duration / self.max_duration * 100))
 
 
-N_STOCK = 200
+Q_SIZE = 200
 
 
 @click.command()
@@ -44,7 +44,7 @@ def example(max_duration, n_tasks, n_proc, sync, verbose):
     tasks = (random.random() * max_duration for _ in range(n_tasks))
 
     with LoadBalancer(workers, reply_sync=sync, verbose=verbose) as conn:
-        for result in conn.iter(tasks, n_stock=N_STOCK):
+        for result in conn.iter(tasks, cache_size=Q_SIZE):
             print(result)
 
 
