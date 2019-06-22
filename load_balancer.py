@@ -33,7 +33,7 @@ def set_logger(context, verbose=False):
 
 
 class Worker(Process, abc.ABC):
-    def __init__(self, init_kwargs: dict, verbose: bool):
+    def __init__(self, init_kwargs: dict = {}, verbose: bool = False):
         super().__init__()
         self.daemon = True
         self.init_kwargs = init_kwargs
@@ -245,17 +245,20 @@ class Connector:
         """
         return self.receiver.recv_pyobj()
 
-    def iter(self, iterable, n_stock=100):
+    def iter(self, iterable, cache_size=100):
         """
         Enqueue tasks from iterable into LoadBalancer pre-filling the queue with
-        `n_stock` tasks.
+        `cache_size` tasks.
 
         :param iterable: iterable of tasks
-        :param n_stock: size of task stock in queue
+        :param cache_size: size of task stock in queue
         :return: generator of result
         """
-        for n_stock_clipped, task in enumerate(islice(iterable, n_stock)):
+        cache_size_max, cache_size = cache_size, 0
+        for task in islice(iterable, cache_size_max):
             self.send(task)
+            cache_size += 1
+
         self.lb.logger.info("queue filled")
 
         while True:
@@ -267,7 +270,7 @@ class Connector:
             yield self.receive()
         self.lb.logger.info("all tasks sent")
 
-        for _ in range(n_stock_clipped):
+        for _ in range(cache_size):
             yield self.receive()
         self.lb.logger.info("queue emptied")
 
