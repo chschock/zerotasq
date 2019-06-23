@@ -30,6 +30,16 @@ def set_logger(context, level=1):
 
 
 class Worker(Process, abc.ABC):
+    """
+    Abstract worker class. You implement this class by adding a `process` method, which
+    contains the workload to be applied to a single task. The `init` method is executed
+    once when the worker process is spawned and should include heavy setup operations
+    like loading a model from disk or building up some necessary datastructure.
+    The worker process executes a simple while loop alternating between receiving tasks
+    and sending results, processing them in between. At startup it registers at the
+    LoadBalancer by sending 'READY'.
+    """
+
     def __init__(self, init_kwargs: dict = {}, loglevel: int = 1):
         super().__init__()
         self.daemon = True
@@ -87,8 +97,12 @@ class Worker(Process, abc.ABC):
 
 
 class LoadBalancer(Process):
-    """Load Balancer inspired by load balancing broker from ZeroMQ guide
-    (http://zguide.zeromq.org/py:lbbroker)"""
+    """
+    Load Balancer inspired by load balancing broker from ZeroMQ guide (
+    http://zguide.zeromq.org/py:lbbroker). While the original handles multiple clients,
+    we have only The model is a simple source (PULL) sink (PUSH) with fan-out fan-in to
+    connect to the workers via a backend socket (ROUTER).
+    """
 
     def __init__(self, workers: Worker, reply_sync: bool = False, loglevel: int = 1):
         super().__init__()
