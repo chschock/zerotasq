@@ -9,18 +9,20 @@ from multiprocessing import Process, Event
 from itertools import islice
 from termcolor import colored
 
+LOG_LEVELS = [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR]
 
-def set_logger(context, verbose=False):
+
+def set_logger(context, level=1):
     logger = logging.getLogger(context)
-    logger.setLevel(logging.DEBUG if verbose else logging.INFO)
+    logger.setLevel(LOG_LEVELS[level])
     formatter = logging.Formatter(
         "%(levelname)-.1s:%(msecs).6s:"
         + context
-        + ":[%(filename).3s:%(funcName).3s:%(lineno)3d]:%(message)s",
+        + ":[%(funcName).5s:%(lineno)3d]:%(message)s",
         datefmt="%m-%d %H:%M:%S",
     )
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.DEBUG if verbose else logging.INFO)
+    console_handler.setLevel(LOG_LEVELS[level])
     console_handler.setFormatter(formatter)
     logger.handlers = []
     logger.addHandler(console_handler)
@@ -28,16 +30,16 @@ def set_logger(context, verbose=False):
 
 
 class Worker(Process, abc.ABC):
-    def __init__(self, init_kwargs: dict = {}, verbose: bool = False):
+    def __init__(self, init_kwargs: dict = {}, loglevel: int = 1):
         super().__init__()
         self.daemon = True
         self.init_kwargs = init_kwargs
-        self.verbose = verbose
+        self.loglevel = loglevel
 
     def setup(self, worker_id: str, backend_con: str):
         self.worker_id = worker_id
         self.backend_con = backend_con
-        self.logger = set_logger(colored(worker_id, "yellow"), self.verbose)
+        self.logger = set_logger(colored(worker_id, "yellow"), self.loglevel)
 
     def init(self, **kwargs):
         """Abstract method to initialize the worker. Called by run as we want setup to run
@@ -77,7 +79,7 @@ class Worker(Process, abc.ABC):
         except KeyboardInterrupt:
             pass
 
-        print("terminating worker {}".format(self.worker_id))
+        self.logger.warning("terminating worker {}".format(self.worker_id))
         for socket in [backend]:
             socket.linger = 0
             socket.close()
@@ -88,19 +90,18 @@ class LoadBalancer(Process):
     """Load Balancer inspired by load balancing broker from ZeroMQ guide
     (http://zguide.zeromq.org/py:lbbroker)"""
 
-    def __init__(self, workers, reply_sync=False, verbose=False):
+    def __init__(self, workers: Worker, reply_sync: bool = False, loglevel: int = 1):
         super().__init__()
         self.daemon = True
         self.workers = workers
         self.reply_sync = reply_sync
-        self.verbose = verbose
         self.is_ready = Event()
         self.id = "lb-{:05d}".format(random.randint(0, 100000))
         self.source_con = "ipc://@{}-source".format(self.id)
         self.sink_con = "ipc://@{}-sink".format(self.id)
         self.backend_con = "ipc://@{}-backend".format(self.id)
         self.control_con = "ipc://@{}-control".format(self.id)
-        self.logger = set_logger(colored(self.id, "green"), verbose)
+        self.logger = set_logger(colored(self.id, "green"), level=loglevel)
 
         # setup background workers
         for i, w in enumerate(self.workers):
@@ -146,7 +147,6 @@ class LoadBalancer(Process):
         for _, p in enumerate(self.workers):
             worker, empty, req_id = backend.recv_multipart()
             worker_queue.append(worker)
-            print("queueing")
 
         # poll for requests from backend and source
         poller = zmq.Poller()

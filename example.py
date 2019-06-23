@@ -33,17 +33,17 @@ Q_SIZE = 200
 @click.option("--n-tasks", default=200, type=click.INT)
 @click.option("--n-proc", default=8, type=click.INT)
 @click.option("--sync/--async", is_flag=True, default=True)
-@click.option("--verbose", is_flag=True, default=False)
-def example(max_duration, n_tasks, n_proc, sync, verbose):
+@click.option("--loglevel", default=1, type=click.Choice([0, 1, 2, 3]))
+def example(max_duration, n_tasks, n_proc, sync, loglevel):
 
     workers = [
-        ExampleWorker(init_kwargs={"max_duration": max_duration}, verbose=verbose)
+        ExampleWorker(init_kwargs={"max_duration": max_duration}, loglevel=loglevel)
         for _ in range(n_proc)
     ]
 
     tasks = (random.random() * max_duration for _ in range(n_tasks))
 
-    with LoadBalancer(workers, reply_sync=sync, verbose=verbose) as conn:
+    with LoadBalancer(workers, reply_sync=sync, loglevel=loglevel) as conn:
         for result in conn.iter(tasks, cache_size=Q_SIZE):
             print(result)
 
