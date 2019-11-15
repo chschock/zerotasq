@@ -1,10 +1,11 @@
 # ZeroTasQ
 
-This package is a very simple implementation of a load balancer leveraging PyZMQ to do the communication between processes. I tried to keep it as simple as possible. It is a simplified version of the load balancing broker from the ZMQ guide, that handles connections from multiple clients. Here we have only a single client, as usual in
+This package is a very simple implementation of a load balancer leveraging PyZMQ to do the communication between processes. It's kept as simple as possible. It is a simplified version of the load balancing broker from the ZMQ guide, that handles connections from multiple clients. Here we have only a single client, as is usual in a setup where an application or script wants to disseminate a series of independent compute-intensive tasks to workers.
+
 
 ## Which problem does it solve
 
-The main drawback of Python is that the main interpreter, CPython, does not support threading of CPU load. So threads make your program concurrent and can also parallelize IO operation, but not computation. ZeroTasQ allows you to spawn processes from your main script / program, send them workload (from a single threading context, via a simple loop) or hand them over an iterable and receive a generator to iterate over the processed results.
+The main drawback of Python is that the interpreter, CPython, does not support threading of CPU load. Threads make your program concurrent and can also parallelize IO operations, but not computation. ZeroTasQ allows you to spawn processes from your main script / program, send them workload (from a single threading context, via a simple loop) or hand them over an iterable and receive a generator to iterate over the processed results.
 
 The problem I had in mind when I wrote it was applying machine learning models in parallel in a streaming fashion. Part of the motivation was certainly to learn about ZeroMQ, which allows you to scale the library to a multi-machine context with minor changes.
 
@@ -19,7 +20,7 @@ The main approach to parallel computing in a server context in Python is using a
 
 ## Design
 
-To understand what is actually happening have a look at `example.py`.
+To understand how to use the library, have a look at `example.py`.
 The LoadBalancer context manager spawns a process for the LoadBalancing and the processes for the workers. Your are given a connector that allows you to send and receive tasks, where send is blocking if the queue is full and receive is blocking if the queue is empty. In simple cases you might want to use the `iter` method to simply feed all you tasks from an iterable into the LoadBalancer while you iterate over them to handle the results. In the manual scenario with `send` and `receive` you have two possibilities:
 - mimic the approach the iter method uses
 - start a sender and a receiver thread and join them after you have collected all the results.
